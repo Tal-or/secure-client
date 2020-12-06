@@ -31,3 +31,6 @@
 *.out
 *.app
 /Debug/
+
+# Submodules Directories
+curlpp/examples
