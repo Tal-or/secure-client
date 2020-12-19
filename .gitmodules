@@ -1,3 +1,6 @@
 [submodule "curlpp"]
 	path = curlpp
 	url = https://github.com/jpbarrette/curlpp.git
+[submodule "json"]
+	path = json
+	url = https://github.com/nlohmann/json.git
