@@ -53,7 +53,7 @@ Client::Client(std::string ip, uint16_t port): m_serverIp(ip), m_serverPort(port
 
 	// SSL options
 	m_handle.setOpt<SslCertType>("PEM");
-    m_handle.setOpt<CaInfo>("../secure-server/cacert.pem");
+    m_handle.setOpt<CaInfo>("../cacert.pem");
     m_handle.setOpt<SslVerifyHost>(true);
     m_handle.setOpt(new cURLpp::Options::UserPwd(credentials));
 
