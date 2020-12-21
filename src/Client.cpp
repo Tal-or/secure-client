@@ -15,34 +15,55 @@
 #include <sys/socket.h>
 #include <iostream>
 #include <arpa/inet.h>
+#include <fstream>
 
 #include "Client.h"
 #include "Options.hpp"
 
+
 namespace {
-constexpr int max_buf_sz = 4096;
+constexpr int maxBuffSz = 4096;
 const std::string lo = "127.0.0.1";
+constexpr int ServerPort = 25000;
+const std::string credentials = "seminar:20928";
 }
 
-using namespace std;
-
-int writeDebug(curl_infotype, char *data, size_t size)
-{
-	fprintf(stderr, "Debug: ");
-	fwrite(data, size, 1, stderr);
-	return size;
-}
+using json = nlohmann::json;
+using namespace curlpp::options;
 
 Client::Client(std::string ip, uint16_t port): m_serverIp(ip), m_serverPort(port)
 {
-	using namespace curlpp::options;
-	m_handle.setOpt<Url>("172.27.16.243");
-	m_handle.setOpt<Port>(1234);
+	std::list<std::string> header;
+	header.push_back("Content-Type: application/json");
+
+	// HTTP options
+	m_handle.setOpt<HttpHeader>(header);
+	m_handle.setOpt<HttpVersion>(CURL_HTTP_VERSION_1_1);
+
+#ifdef debug
+		m_handle.setOpt(Verbose(true));
+#endif
+
+    // Network options
+    std::string url("https://");
+    url.append(m_serverIp);
+	m_handle.setOpt<Url>(url);
+	m_handle.setOpt<Port>(m_serverPort);
+	m_handle.setOpt<TcpNoDelay>(true);
+
+	// SSL options
+	m_handle.setOpt<SslCertType>("PEM");
+    m_handle.setOpt<CaInfo>("../secure-server/cacert.pem");
+    m_handle.setOpt<SslVerifyHost>(true);
+    m_handle.setOpt(new cURLpp::Options::UserPwd(credentials));
+
+    // Protocol options.
+    m_handle.setOpt<Timeout>(7);
+
 }
 
-void Client::Connect()
+void Client::Talk()
 {
-
 	try
 	{
 		m_handle.perform();
@@ -58,16 +79,15 @@ void Client::Connect()
 	}
 }
 
-
-void Client::OldBasicImp(string ip, uint16_t port)
+void Client::OldBasicImp(std::string ip, uint16_t port)
 {
-	int sckfd {};
-	struct addrinfo ai {};
+	int sckfd{};
+	struct addrinfo ai{};
 	size_t ailen = sizeof(struct sockaddr_in);
-	struct sockaddr_in s {};
-	char buf[max_buf_sz] {};
-	int numOfBytes {};
-	string serverAddr(lo);
+	struct sockaddr_in s{};
+	char buf[maxBuffSz]{};
+	int numOfBytes{};
+	std::string serverAddr(lo);
 
 	if (ip.size())
 		serverAddr.assign(ip);
@@ -86,13 +106,22 @@ void Client::OldBasicImp(string ip, uint16_t port)
 		perror("client: connect");
 	}
 
-	cout << "client: successfully connected to:" << serverAddr << endl;
+	std::cout << "client: successfully connected to:" << serverAddr << std::endl;
 
 	while(true){
-		numOfBytes = recv(sckfd, buf, max_buf_sz, 0);
+		numOfBytes = recv(sckfd, buf, maxBuffSz, 0);
 		buf[numOfBytes] = '\0';
 
-		cout << "client: received'" << buf << "'" << endl;
+		std::cout << "client: received'" << buf << "'" << std::endl;
 	}
 	close(sckfd);
+}
+
+void SendMsg(std::string msg)
+{
+	Client c("localhost", ServerPort);
+	c.m_jMsg["cmd"] = msg;
+	c.m_handle.setOpt<PostFields>(c.m_jMsg.dump());
+	c.Talk();
+
 }
