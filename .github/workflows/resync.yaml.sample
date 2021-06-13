@@ -1,0 +1,44 @@
+# This workflow will rebase the u/s repo into it's d/s mirror in order to keep them in sync
+
+name: resync action
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  resync:
+    name: resync job
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone d/s repository
+      env:
+        PUSH_TOKEN: ${{ secrets.MYKEY }}
+      run: |
+        git clone https://${PUSH_TOKEN}@github.com/Tal-or/secure-server.git
+
+    - name: Setup d/s repository
+      run: |
+        cd ./secure-server
+        git config user.email titzhak@redhat.com
+        git config user.name Tal-or
+
+    - name: Rebase d/s repository
+      run: |
+        cd ./secure-server
+        touch test
+        git add -A
+        git commit -asm "test commit"
+        echo "CONFLICTS=$(git diff --name-only --diff-filter=U | wc -l)" >> $GITHUB_ENV
+
+    - name: Check conflicts
+      if: ${{ env.CONFLICTS != '0' }}
+      run: |
+        echo "Conflicts have been detected"
+        exit 1
+
+    - name: Push
+      run: |
+        cd ./secure-server
+        git push -u origin main
